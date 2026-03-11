@@ -1613,7 +1613,7 @@ ZI[EXTENDED_GLOB]=""
   if [[ "$st" = "status" ]]; then
     if (( ${+ICE2[svn]} )); then
       builtin print -r -- "${ZI[col-info]}Status for ${${${local_dir:h}:t}##*--}/${local_dir:t}${ZI[col-rst]}"
-      ( builtin cd -q "$local_dir"; command svn status -vu )
+      ( builtin cd -q "$local_dir"; if [[ -d .git ]]; then command git status; else command svn status -vu; fi )
       retval=$?
       builtin print
     else
