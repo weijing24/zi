@@ -126,8 +126,8 @@
 
   .zi-get-object-path snippet "$url1"
   local_dirA=$reply[-3] dirnameA=$reply[-2]
-  [[ -d "$local_dirA/$dirnameA/.git" || -d "$local_dirA/$dirnameA/.svn" ]] && {
-    if [[ -d "$local_dirA/$dirnameA/.git" ]]; then svn_dirA=".git"; else svn_dirA=".svn"; fi
+  [[ -f "$local_dirA/$dirnameA/.zi_rev" || -d "$local_dirA/$dirnameA/.svn" ]] && {
+    if [[ -f "$local_dirA/$dirnameA/.zi_rev" ]]; then svn_dirA=".zi_rev"; else svn_dirA=".svn"; fi
     if { .zi-first % "$local_dirA/$dirnameA"; } {
       fileB_there=( ${reply[-1]} )
     }
