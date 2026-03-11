@@ -767,8 +767,7 @@ builtin source "${ZI[BIN_DIR]}/lib/zsh/side.zsh" || { builtin print -P "${ZI[col
         # Remove old files except .zi metadata
         command find "$directory" -maxdepth 1 -not -name '.zi' -not -name '.zi_rev' -not -path "$directory" -exec rm -rf {} + 2>/dev/null
       fi
-      command cp -Rf "$src_dir"/* "$directory"/ 2>/dev/null
-      command cp -Rf "$src_dir"/.[^.]* "$directory"/ 2>/dev/null
+      command cp -Rf "$src_dir"/(^.git)(DN) "$directory"/ 2>/dev/null
       # Store revision for update checks
       local rev
       rev=$(command git -C "$tmpdir/repo" rev-parse HEAD 2>/dev/null)
