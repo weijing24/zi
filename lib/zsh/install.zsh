@@ -739,29 +739,46 @@ builtin source "${ZI[BIN_DIR]}/lib/zsh/side.zsh" || { builtin print -P "${ZI[col
   fi
 
   if [[ "$update" = "-t" ]]; then
-    ( () { builtin setopt localoptions noautopushd; builtin cd -q "$directory"; }
-      local local_rev remote_rev
-      local_rev=$(command git rev-parse HEAD 2>/dev/null)
-      remote_rev=$(command git ls-remote --refs "$repo_url" HEAD 2>/dev/null | command awk '{print $1}')
-      [[ -n "$remote_rev" && "$local_rev" != "$remote_rev" ]] && return 0
-      return 1
-    )
-    return $?
+    local local_rev remote_rev
+    local_rev="$(<"$directory/.zi_rev" 2>/dev/null)"
+    remote_rev=$(command git ls-remote "$repo_url" HEAD 2>/dev/null | command awk '{print $1}')
+    [[ -n "$remote_rev" && "$local_rev" != "$remote_rev" ]] && return 0
+    return 1
   fi
-  if [[ "$update" = "-u" && -d "$directory" && -d "$directory/.git" ]]; then
-    ( () { builtin setopt localoptions noautopushd; builtin cd -q "$directory"; }
-    command git pull --depth=1 -q origin 2>/dev/null
-    return $? )
-  else
-    command git clone --no-checkout --depth=1 --filter=tree:0 -q "$repo_url" "$directory" || return 4
-    ( () { builtin setopt localoptions noautopushd; builtin cd -q "$directory"; } || return 4
-    if [[ -n "$subpath" ]]; then
-      command git sparse-checkout set "$subpath" 2>/dev/null
+
+  # Clone to temp dir, sparse-checkout subpath, copy contents to target
+  local tmpdir
+  tmpdir=$(command mktemp -d) || return 4
+  {
+    command git clone --no-checkout --depth=1 --filter=tree:0 -q "$repo_url" "$tmpdir/repo" || return 4
+    ( () { builtin setopt localoptions noautopushd; builtin cd -q "$tmpdir/repo"; } || return 4
+      if [[ -n "$subpath" ]]; then
+        command git sparse-checkout set --no-cone "/$subpath" 2>/dev/null
+      fi
+      command git checkout -q 2>/dev/null
+    ) || return 4
+
+    local src_dir="$tmpdir/repo"
+    [[ -n "$subpath" ]] && src_dir="$tmpdir/repo/$subpath"
+
+    if [[ -d "$src_dir" ]]; then
+      command mkdir -p "$directory"
+      if [[ "$update" = "-u" ]]; then
+        # Remove old files except .zi metadata
+        command find "$directory" -maxdepth 1 -not -name '.zi' -not -name '.zi_rev' -not -path "$directory" -exec rm -rf {} + 2>/dev/null
+      fi
+      command cp -Rf "$src_dir"/(^.git)(DN) "$directory"/ 2>/dev/null
+      # Store revision for update checks
+      local rev
+      rev=$(command git -C "$tmpdir/repo" rev-parse HEAD 2>/dev/null)
+      [[ -n "$rev" ]] && builtin print -r -- "$rev" > "$directory/.zi_rev"
+    else
+      return 4
     fi
-    command git checkout -q 2>/dev/null
-    return $? )
-  fi
-  return $?
+  } always {
+    command rm -rf "$tmpdir"
+  }
+  return 0
 }
 # ]]]
 # FUNCTION: .zi-forget-completion [[[
