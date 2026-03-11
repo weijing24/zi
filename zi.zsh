@@ -206,12 +206,12 @@ ZI[TMP_SUBST]=inactive   ZI[DTRACE]=0    ZI[CUR_PLUGIN]=
 # Parameters - ICE. [[[
 typeset -gA ZI_1MAP ZI_2MAP
 ZI_1MAP=(
-  OMZ:: https://github.com/ohmyzsh/ohmyzsh/trunk/
-  OMZP:: https://github.com/ohmyzsh/ohmyzsh/trunk/plugins/
-  OMZT:: https://github.com/ohmyzsh/ohmyzsh/trunk/themes/
-  OMZL:: https://github.com/ohmyzsh/ohmyzsh/trunk/lib/
-  PZT:: https://github.com/sorin-ionescu/prezto/trunk/
-  PZTM:: https://github.com/sorin-ionescu/prezto/trunk/modules/
+  OMZ:: https://github.com/ohmyzsh/ohmyzsh/
+  OMZP:: https://github.com/ohmyzsh/ohmyzsh/plugins/
+  OMZT:: https://github.com/ohmyzsh/ohmyzsh/themes/
+  OMZL:: https://github.com/ohmyzsh/ohmyzsh/lib/
+  PZT:: https://github.com/sorin-ionescu/prezto/
+  PZTM:: https://github.com/sorin-ionescu/prezto/modules/
 )
 ZI_2MAP=(
   OMZ:: https://raw.githubusercontent.com/ohmyzsh/ohmyzsh/master/

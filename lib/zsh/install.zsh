@@ -709,10 +709,10 @@ builtin source "${ZI[BIN_DIR]}/lib/zsh/side.zsh" || { builtin print -P "${ZI[col
   return 0
 } # ]]]
 # FUNCTION: .zi-mirror-using-svn [[[
-# Used to clone subdirectories from Github.
-# If in update mode (see $2), then invokes `svn update',
-# in normal mode invokes `svn checkout --non-interactive -q <URL>'.
-# In test mode only compares remote and local revision and outputs true if update is needed.
+# Used to clone subdirectories from Github using git sparse-checkout.
+# If in update mode (see $2), then invokes `git pull',
+# in normal mode invokes `git clone' with sparse-checkout.
+# In test mode only compares remote and local HEAD and outputs true if update is needed.
 #
 # $1 - URL
 # $2 - mode, "" - normal, "-u" - update, "-t" - test
@@ -721,28 +721,45 @@ builtin source "${ZI[BIN_DIR]}/lib/zsh/side.zsh" || { builtin print -P "${ZI[col
   builtin setopt localoptions extendedglob warncreateglobal
   local url="$1" update="$2" directory="$3"
 
-  (( ${+commands[svn]} )) || \
-    +zi-message "{error}Warning{ehi}:{rst} Subversion not found{nl}{mmdsh}{rst} {auto}Please install it to use \`svn' ice"
+  (( ${+commands[git]} )) || \
+    +zi-message "{error}Warning{ehi}:{rst} Git not found{nl}{mmdsh}{rst} {auto}Please install it to use \`svn' ice"
+
+  # Parse GitHub URL to extract repo URL and subpath
+  # e.g. https://github.com/ohmyzsh/ohmyzsh/plugins/git
+  #   -> repo_url=https://github.com/ohmyzsh/ohmyzsh subpath=plugins/git
+  local repo_url subpath
+  if [[ "$url" = *github.com* ]]; then
+    repo_url=${(M)url##https://github.com/[^/]##/[^/]##}
+    subpath=${url#$repo_url}
+    subpath=${subpath#/}
+    subpath=${subpath%/}
+  else
+    +zi-message "{error}Warning{ehi}:{rst} Non-GitHub URLs are not supported for \`svn' ice without Subversion"
+    return 1
+  fi
 
   if [[ "$update" = "-t" ]]; then
     ( () { builtin setopt localoptions noautopushd; builtin cd -q "$directory"; }
-      local -a out1 out2
-      out1=( "${(f@)"$(LANG=C svn info -r HEAD)"}" )
-      out2=( "${(f@)"$(LANG=C svn info)"}" )
-
-      out1=( "${(M)out1[@]:#Revision:*}" )
-      out2=( "${(M)out2[@]:#Revision:*}" )
-      [[ "${out1[1]##[^0-9]##}" != "${out2[1]##[^0-9]##}" ]] && return 0
+      local local_rev remote_rev
+      local_rev=$(command git rev-parse HEAD 2>/dev/null)
+      remote_rev=$(command git ls-remote --refs "$repo_url" HEAD 2>/dev/null | command awk '{print $1}')
+      [[ -n "$remote_rev" && "$local_rev" != "$remote_rev" ]] && return 0
       return 1
     )
     return $?
   fi
-  if [[ "$update" = "-u" && -d "$directory" && -d "$directory/.svn" ]]; then
+  if [[ "$update" = "-u" && -d "$directory" && -d "$directory/.git" ]]; then
     ( () { builtin setopt localoptions noautopushd; builtin cd -q "$directory"; }
-    command svn update
+    command git pull --depth=1 -q origin 2>/dev/null
     return $? )
   else
-    command svn checkout --non-interactive -q "$url" "$directory"
+    command git clone --no-checkout --depth=1 --filter=tree:0 -q "$repo_url" "$directory" || return 4
+    ( () { builtin setopt localoptions noautopushd; builtin cd -q "$directory"; } || return 4
+    if [[ -n "$subpath" ]]; then
+      command git sparse-checkout set "$subpath" 2>/dev/null
+    fi
+    command git checkout -q 2>/dev/null
+    return $? )
   fi
   return $?
 }
@@ -935,7 +952,7 @@ builtin source "${ZI[BIN_DIR]}/lib/zsh/side.zsh" || { builtin print -P "${ZI[col
       (
         () { builtin setopt localoptions noautopushd; builtin cd -q "$local_dir"; } || return 4
         (( !OPTS[opt_-q,--quiet] )) && \
-        +zi-message "Downloading{ehi}:{rst} {apo}\`{url}$sname{apo}\`{rst}${${ICE[svn]+" ({p}with Subversion{rst})"}:-" ({p}with curl, wget, lftp{rst})"}{…}"
+        +zi-message "Downloading{ehi}:{rst} {apo}\`{url}$sname{apo}\`{rst}${${ICE[svn]+" ({p}with git sparse-checkout{rst})"}:-" ({p}with curl, wget, lftp{rst})"}{…}"
 
         if (( ${+ICE[svn]} )) {
           if [[ $update = -u ]] {
